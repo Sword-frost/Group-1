@@ -1,0 +1,23 @@
+name: selftest
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:      # 也可以在网页上手动点一下运行
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: 跑自检（核心规则）
+        run: python shop_app.py --selftest
+
+      - name: 冒烟跑一遍完整流程（注册→加购→结算→看订单）
+        run: |
+          printf '2\ndemo\npw123\ny\n2\n1\n1\n6\ny\n7\n0\n0\n' | python shop_app.py
