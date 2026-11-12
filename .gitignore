@@ -1,0 +1,9 @@
+.venv/
+.idea/
+__pycache__/
+*.pyc
+*.db
+users.json
+products.json
+carts.json
+orders.json

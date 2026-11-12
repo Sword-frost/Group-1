@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}简易商城{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="navbar">
+    <div class="container nav-inner">
+        <a class="logo" href="{{ url_for('index') }}">🛒 简易商城</a>
+        <form class="search" action="{{ url_for('index') }}" method="get">
+            <input type="text" name="q" placeholder="搜索商品…" value="{{ keyword|default('') }}">
+            <button type="submit">搜索</button>
+        </form>
+        <nav class="nav-links">
+            {% if current_user %}
+                <span class="hello">你好，{{ current_user['username'] }}</span>
+                <a href="{{ url_for('orders') }}">我的订单</a>
+                <a href="{{ url_for('logout') }}">退出</a>
+            {% else %}
+                <a href="{{ url_for('login') }}">登录</a>
+                <a href="{{ url_for('register') }}">注册</a>
+            {% endif %}
+            <a class="cart-link" href="{{ url_for('cart') }}">🛍️ 购物车
+                {% if cart_count %}<span class="badge">{{ cart_count }}</span>{% endif %}
+            </a>
+        </nav>
+    </div>
+</header>
+
+<main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, msg in messages %}
+                <div class="flash flash-{{ category }}">{{ msg }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+    <div class="container">简易购物系统 · Flask 演示项目</div>
+</footer>
+</body>
+</html>

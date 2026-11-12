@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}购物车 - 简易商城{% endblock %}
+
+{% block content %}
+<h2>我的购物车</h2>
+
+{% if items %}
+<table class="cart-table">
+    <thead>
+        <tr>
+            <th>商品</th>
+            <th>单价</th>
+            <th>数量</th>
+            <th>小计</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td>
+                <div class="cart-product">
+                    <span class="cart-emoji">{{ item['emoji'] }}</span>
+                    <div>
+                        <div class="cart-name">{{ item['name'] }}</div>
+                        <div class="cart-cat">{{ item['category'] }}</div>
+                    </div>
+                </div>
+            </td>
+            <td>¥{{ '%.2f'|format(item['price']) }}</td>
+            <td>
+                <form class="qty-form" action="{{ url_for('update_cart', item_id=item['item_id']) }}" method="post">
+                    <input type="number" name="quantity" value="{{ item['quantity'] }}"
+                           min="1" max="{{ item['stock'] }}">
+                    <button type="submit" class="btn btn-small">更新</button>
+                </form>
+            </td>
+            <td>¥{{ '%.2f'|format(item['price'] * item['quantity']) }}</td>
+            <td>
+                <form action="{{ url_for('remove_from_cart', item_id=item['item_id']) }}" method="post">
+                    <button type="submit" class="btn btn-danger btn-small">删除</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="cart-summary">
+    <span>合计：<strong class="price big">¥{{ '%.2f'|format(total) }}</strong></span>
+    <a href="{{ url_for('checkout') }}" class="btn btn-primary">去结算</a>
+</div>
+{% else %}
+<p class="empty">购物车是空的，<a href="{{ url_for('index') }}">去逛逛</a>吧。</p>
+{% endif %}
+{% endblock %}
