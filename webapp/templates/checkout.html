@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}确认订单 - 简易商城{% endblock %}
+
+{% block content %}
+<h2>确认订单</h2>
+
+<div class="checkout-card">
+    <h3>商品清单</h3>
+    <table class="cart-table">
+        <thead>
+            <tr><th>商品</th><th>单价</th><th>数量</th><th>小计</th></tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>
+                    <div class="cart-product">
+                        <span class="cart-emoji">{{ item['emoji'] }}</span>
+                        <div class="cart-name">{{ item['name'] }}</div>
+                    </div>
+                </td>
+                <td>¥{{ '%.2f'|format(item['price']) }}</td>
+                <td>{{ item['quantity'] }}</td>
+                <td>¥{{ '%.2f'|format(item['price'] * item['quantity']) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <form action="{{ url_for('checkout') }}" method="post" id="checkout-form">
+        <div class="cart-summary">
+        <span>商品总额：¥{{ '%.2f'|format(subtotal) }}</span>
+        {% if is_student %}<span>学生九折优惠：−¥{{ '%.2f'|format(subtotal - total) }}</span>{% endif %}
+        <span>应付总额：<strong class="price big">¥{{ '%.2f'|format(total) }}</strong></span>
+            <button type="submit" class="btn btn-primary">确认下单</button>
+        <a href="{{ url_for('cart') }}" class="btn">返回购物车</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
