@@ -1,0 +1,18 @@
+# 运行时生成的用户数据（含密码哈希、订单），不要提交
+shop_data.json
+shop_data.json.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 编辑器
+.idea/
+.vscode/
+*.iml
+
+# 系统
+.DS_Store
+Thumbs.db
