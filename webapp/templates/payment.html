@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Payment - Simple Shop{% endblock %}
+{% block content %}
+<h2>Payment</h2>
+<div class="checkout-card">
+    <p>Order #{{ order['id'] }} · Total: <strong class="price">¥{{ '%.2f'|format(order['total']) }}</strong></p>
+    <p class="flash flash-warning">Demo only. Scanning shows a text label and does not transfer money.</p>
+    {% if order['status'] == 'Awaiting demo payment' %}
+    <div class="payment-grid">
+        {% for method, label in [('wechat', 'WeChat Pay'), ('alipay', 'Alipay')] %}
+        <div class="payment-option">
+            <h3>{{ label }}</h3>
+            <img src="{{ url_for('payment_qr', method=method) }}" alt="{{ label }} demo QR code" width="220" height="220">
+            <p>Scan with your phone to see the payment label.</p>
+            <form method="post">
+                <input type="hidden" name="method" value="{{ method }}">
+                <button class="btn btn-primary" type="submit">Complete demo with {{ label }}</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}<p>This order has already been completed.</p>{% endif %}
+    <p><a href="{{ url_for('orders') }}">View orders</a></p>
+</div>
+{% endblock %}

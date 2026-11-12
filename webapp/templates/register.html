@@ -1,21 +1,22 @@
 {% extends "base.html" %}
-{% block title %}注册 - 简易商城{% endblock %}
+{% block title %}Register - Simple Shop{% endblock %}
 
 {% block content %}
 <div class="auth-card">
-    <h2>注册</h2>
+    <h2>Register</h2>
     <form method="post">
-        <label>用户名</label>
-        <input type="text" name="username" required autofocus>
-        <label>密码（至少 4 位）</label>
-        <input type="password" name="password" required>
-        <label>确认密码</label>
+        <label>Username</label>
+        <input type="text" name="username" minlength="2" value="{{ request.form.get('username', '') }}" required autofocus>
+        <label>Password</label>
+        <input type="password" name="password" minlength="6" required autocomplete="new-password">
+        <small>At least 6 characters: uppercase and lowercase letters, a number and a special character (for example ! or @).</small>
+        <label>Confirm password</label>
         <input type="password" name="confirm" required>
-        <label for="student_number">学号（选填，12 位数字）</label>
+        <label for="student_number">Student number (optional, 12 digits)</label>
         <input type="text" id="student_number" name="student_number" inputmode="numeric" pattern="[0-9]{12}" maxlength="12" value="{{ request.form.get('student_number', '') }}">
-        <small>填写符合格式的学号后可享学生九折；非学生可留空。仅检查格式。</small>
-        <button type="submit" class="btn btn-primary btn-block">注册</button>
+        <small>Enter a 12-digit number for 10% off. Optional; format check only.</small>
+        <button type="submit" class="btn btn-primary btn-block">Register</button>
     </form>
-    <p class="auth-switch">已有账号？<a href="{{ url_for('login') }}">去登录</a></p>
+    <p class="auth-switch">Already registered? <a href="{{ url_for('login') }}">Log in</a></p>
 </div>
 {% endblock %}

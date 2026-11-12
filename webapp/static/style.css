@@ -228,3 +228,6 @@ h2 { margin: 20px 0 16px; }
     border-top: 1px solid var(--border);
     background: var(--card);
 }
+.payment-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
+.payment-option { text-align: center; padding: 24px; border: 1px solid #ddd; border-radius: 12px; }
+.payment-option img { max-width: 100%; height: auto; background: white; }

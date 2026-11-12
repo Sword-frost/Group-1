@@ -7,11 +7,17 @@
 import os
 import sqlite3
 import hashlib
+import io
+import re
+import secrets
+import string
+import qrcode
+import qrcode.image.svg
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from functools import wraps
 
-from flask import Flask, render_template, request, redirect, url_for, session, flash, g
+from flask import Flask, render_template, request, redirect, url_for, session, flash, g, abort, Response
 
 app = Flask(__name__)
 # 演示用固定密钥；正式环境请用随机密钥并通过环境变量注入
@@ -19,6 +25,20 @@ app.secret_key = "dev-secret-key-change-me"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "shop.db")
+
+@app.template_filter("translate")
+def translate(value):
+    return {
+        "无线蓝牙耳机": "Wireless headphones", "主动降噪，续航 30 小时": "Active noise cancellation, 30-hour battery",
+        "机械键盘": "Mechanical keyboard", "青轴手感，全键无冲": "Blue switches, full key rollover",
+        "保温杯": "Insulated bottle", "316 不锈钢，保温 12 小时": "316 stainless steel, keeps warm for 12 hours",
+        "运动鞋": "Running shoes", "轻便透气，缓震鞋底": "Lightweight, breathable, cushioned sole",
+        "双肩背包": "Backpack", "大容量，防泼水面料": "Large capacity, water-resistant fabric",
+        "台灯": "Desk lamp", "三档调光，护眼无频闪": "Three brightness levels, flicker-free light",
+        "充电宝 20000mAh": "Power bank 20000mAh", "双向快充，多设备兼容": "Two-way fast charging, multi-device support",
+        "咖啡杯": "Coffee mug", "陶瓷内胆，防烫杯套": "Ceramic interior, protective sleeve",
+        "数码": "Electronics", "家居": "Home", "服饰": "Clothing", "已支付": "Paid",
+    }.get(value, value)
 
 
 # ------------------------- 数据库 -------------------------
@@ -138,7 +158,7 @@ def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
         if current_user() is None:
-            flash("请先登录。", "warning")
+            flash("Please log in first.", "warning")
             return redirect(url_for("login"))
         return view(*args, **kwargs)
     return wrapped
@@ -192,27 +212,31 @@ def register():
         student_number = request.form.get("student_number", "").strip()
 
         if not username or not password:
-            flash("用户名和密码不能为空。", "warning")
-        elif len(password) < 4:
-            flash("密码至少 4 位。", "warning")
+            flash("Username and password are required.", "warning")
+        elif len(username) < 2:
+            flash("Username must contain at least 2 characters.", "warning")
+        elif (len(password) < 6 or not re.search(r"[A-Z]", password)
+              or not re.search(r"[a-z]", password) or not re.search(r"[0-9]", password)
+              or not any(char in string.punctuation for char in password)):
+            flash("Password must have at least 6 characters, including uppercase and lowercase letters, a number and a special character.", "warning")
         elif password != confirm:
-            flash("两次输入的密码不一致。", "warning")
+            flash("Passwords do not match.", "warning")
         elif student_number and (len(student_number) != 12 or not student_number.isascii() or not student_number.isdigit()):
-            flash("学号必须是 12 位数字；非学生可以留空。", "warning")
+            flash("Student number must be exactly 12 digits, or leave it blank.", "warning")
         else:
             db = get_db()
             exists = db.execute(
                 "SELECT 1 FROM users WHERE username = ?", (username,)
             ).fetchone()
             if exists:
-                flash("该用户名已被注册。", "warning")
+                flash("This username is already registered.", "warning")
             else:
                 db.execute(
                     "INSERT INTO users (username, password, created_at, student_number) VALUES (?, ?, ?, ?)",
                     (username, hash_password(password), str(datetime.now()), student_number or None),
                 )
                 db.commit()
-                flash("注册成功，请登录。", "success")
+                flash("Registration successful. Please log in.", "success")
                 return redirect(url_for("login"))
     return render_template("register.html")
 
@@ -228,16 +252,16 @@ def login():
         if user and user["password"] == hash_password(password):
             session.clear()
             session["user_id"] = user["id"]
-            flash(f"欢迎回来，{user['username']}！", "success")
+            flash(f"Welcome back, {user['username']}!", "success")
             return redirect(url_for("index"))
-        flash("用户名或密码错误。", "warning")
+        flash("Incorrect username or password.", "warning")
     return render_template("login.html")
 
 
 @app.route("/logout")
 def logout():
     session.clear()
-    flash("已退出登录。", "success")
+    flash("You have logged out.", "success")
     return redirect(url_for("index"))
 
 
@@ -266,7 +290,7 @@ def add_to_cart(pid):
     db = get_db()
     product = db.execute("SELECT * FROM products WHERE id = ?", (pid,)).fetchone()
     if product is None:
-        flash("商品不存在。", "warning")
+        flash("Product not found.", "warning")
         return redirect(request.referrer or url_for("index"))
 
     qty = request.form.get("quantity", 1, type=int)
@@ -280,24 +304,24 @@ def add_to_cart(pid):
     if existing:
         new_qty = existing["quantity"] + qty
         if new_qty > product["stock"]:
-            flash(f"《{product['name']}》库存不足（剩余 {product['stock']}）。", "warning")
+            flash(f"Insufficient stock (available: {product['stock']}).", "warning")
         else:
             db.execute(
                 "UPDATE cart_items SET quantity = ? WHERE id = ?",
                 (new_qty, existing["id"]),
             )
             db.commit()
-            flash(f"已将《{product['name']}》加入购物车。", "success")
+            flash(f"Item added to cart.", "success")
     else:
         if qty > product["stock"]:
-            flash(f"《{product['name']}》库存不足（剩余 {product['stock']}）。", "warning")
+            flash(f"Insufficient stock (available: {product['stock']}).", "warning")
         else:
             db.execute(
                 "INSERT INTO cart_items (user_id, product_id, quantity) VALUES (?, ?, ?)",
                 (user["id"], pid, qty),
             )
             db.commit()
-            flash(f"已将《{product['name']}》加入购物车。", "success")
+            flash(f"Item added to cart.", "success")
     return redirect(request.referrer or url_for("index"))
 
 
@@ -311,7 +335,7 @@ def update_cart(item_id):
         (item_id, user["id"]),
     ).fetchone()
     if item is None:
-        flash("购物车项不存在。", "warning")
+        flash("Cart item not found.", "warning")
         return redirect(url_for("cart"))
 
     qty = request.form.get("quantity", 1, type=int)
@@ -321,13 +345,13 @@ def update_cart(item_id):
     if qty <= 0:
         db.execute("DELETE FROM cart_items WHERE id = ?", (item_id,))
         db.commit()
-        flash("已删除该商品。", "success")
+        flash("Item removed.", "success")
     elif product and qty > product["stock"]:
-        flash(f"《{product['name']}》库存不足（剩余 {product['stock']}）。", "warning")
+        flash(f"Insufficient stock (available: {product['stock']}).", "warning")
     else:
         db.execute("UPDATE cart_items SET quantity = ? WHERE id = ?", (qty, item_id))
         db.commit()
-        flash("数量已更新。", "success")
+        flash("Quantity updated.", "success")
     return redirect(url_for("cart"))
 
 
@@ -341,7 +365,7 @@ def remove_from_cart(item_id):
         (item_id, user["id"]),
     )
     db.commit()
-    flash("已从购物车删除。", "success")
+    flash("Item removed from cart.", "success")
     return redirect(url_for("cart"))
 
 
@@ -362,7 +386,7 @@ def checkout():
     ).fetchall()
 
     if not rows:
-        flash("购物车是空的，先去挑选商品吧。", "warning")
+        flash("Your cart is empty. Add some products first.", "warning")
         return redirect(url_for("cart"))
 
     subtotal = sum((Decimal(str(r["price"])) * r["quantity"] for r in rows), Decimal("0"))
@@ -373,7 +397,7 @@ def checkout():
         # 下单前再次校验库存
         for r in rows:
             if r["quantity"] > r["stock"]:
-                flash(f"《{r['name']}》库存不足（剩余 {r['stock']}），下单失败。", "warning")
+                flash(f"Insufficient stock (available: {r['stock']}). Order not placed.", "warning")
                 return redirect(url_for("cart"))
 
         # 扣减库存
@@ -384,7 +408,7 @@ def checkout():
             )
         # 创建订单
         cur = db.execute(
-            "INSERT INTO orders (user_id, total, status, created_at) VALUES (?, ?, '已支付', ?)",
+            "INSERT INTO orders (user_id, total, status, created_at) VALUES (?, ?, 'Awaiting demo payment', ?)",
             (user["id"], float(total), str(datetime.now())),
         )
         order_id = cur.lastrowid
@@ -397,14 +421,48 @@ def checkout():
         # 清空购物车
         db.execute("DELETE FROM cart_items WHERE user_id = ?", (user["id"],))
         db.commit()
-        flash(f"下单成功！订单号 #{order_id}，实付 ¥{total:.2f}。", "success")
-        return redirect(url_for("orders"))
+        return redirect(url_for("payment", order_id=order_id))
 
     return render_template("checkout.html", items=rows, subtotal=subtotal,
                            total=total, is_student=is_student)
 
 
 # ------------------------- 订单 -------------------------
+@app.route("/payment/<int:order_id>", methods=["GET", "POST"])
+@login_required
+def payment(order_id):
+    db = get_db()
+    order = db.execute("SELECT * FROM orders WHERE id = ? AND user_id = ?",
+                       (order_id, current_user()["id"])).fetchone()
+    if order is None:
+        abort(404)
+    if request.method == "POST":
+        method = request.form.get("method")
+        if method not in ("wechat", "alipay"):
+            abort(400)
+        db.execute("UPDATE orders SET status = ? WHERE id = ? AND status = ?",
+                   ("Demo paid", order_id, "Awaiting demo payment"))
+        db.commit()
+        flash("Demo payment completed. No money was charged.", "success")
+        return redirect(url_for("orders"))
+    return render_template("payment.html", order=order)
+
+
+@app.route("/payment/qr/<method>.svg")
+@login_required
+def payment_qr(method):
+    payloads = {"wechat": "微信支付", "alipay": "支付宝支付"}
+    if method not in payloads:
+        abort(404)
+    qr = qrcode.QRCode(box_size=8, border=4, mask_pattern=secrets.randbelow(8))
+    qr.add_data(payloads[method])
+    qr.make(fit=True)
+    image = qr.make_image(image_factory=qrcode.image.svg.SvgPathImage)
+    output = io.BytesIO()
+    image.save(output)
+    return Response(output.getvalue(), mimetype="image/svg+xml", headers={"Cache-Control": "no-store"})
+
+
 @app.route("/orders")
 @login_required
 def orders():

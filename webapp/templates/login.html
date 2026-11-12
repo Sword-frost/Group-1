@@ -1,16 +1,16 @@
 {% extends "base.html" %}
-{% block title %}登录 - 简易商城{% endblock %}
+{% block title %}Log in - Simple Shop{% endblock %}
 
 {% block content %}
 <div class="auth-card">
-    <h2>登录</h2>
+    <h2>Log in</h2>
     <form method="post">
-        <label>用户名</label>
+        <label>Username</label>
         <input type="text" name="username" required autofocus>
-        <label>密码</label>
+        <label>Password</label>
         <input type="password" name="password" required>
-        <button type="submit" class="btn btn-primary btn-block">登录</button>
+        <button type="submit" class="btn btn-primary btn-block">Log in</button>
     </form>
-    <p class="auth-switch">还没有账号？<a href="{{ url_for('register') }}">去注册</a></p>
+    <p class="auth-switch">New here? <a href="{{ url_for('register') }}">Register</a></p>
 </div>
 {% endblock %}
